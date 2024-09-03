@@ -1,10 +1,8 @@
-const Discord = require('discord.js');
-const express = require('express');
-const axios = require('axios');
-const MongoClient = require('mongodb').MongoClient;
-require('dotenv').config();
+import NextApiRequest from 'next-api-request';
+import { MongoClient } from 'mongodb';
+import axios from 'axios';
+import Discord from 'discord.js';
 
-// Create a new Discord client
 const client = new Discord.Client({
   intents: [
     Discord.GatewayIntentBits.Guilds,
@@ -13,21 +11,12 @@ const client = new Discord.Client({
   ],
 });
 
-// Create a new Express app
-const app = express();
-
-// Connect to MongoDB
 const mongoClient = new MongoClient(process.env.MONGO_URI, { useNewUrlParser: true, useUnifiedTopology: true });
 const db = mongoClient.db();
 const collection = db.collection('api_tokens');
 
-// Set up Discord client
-client.on('ready', () => {
-  console.log('Ready to serve the best API of all time');
-  client.user.setActivity('in development');
-});
+const app = NextApiRequest();
 
-// Set up API endpoint for userinfo
 app.get('/userinfo', async (req, res) => {
   const apiToken = req.headers.authorization;
   if (!apiToken) {
@@ -72,18 +61,15 @@ app.get('/userinfo', async (req, res) => {
   }
 });
 
-// Verify API token
 async function verifyApiToken(apiToken) {
   const tokenDoc = await collection.findOne({ token: apiToken });
   return tokenDoc !== null;
 }
 
-// Generate API token
 function generateApiToken() {
   return require('crypto').randomBytes(16).toString('hex');
 }
 
-// Give API token to user
 client.on('messageCreate', async (message) => {
   if (message.content.startsWith('!give')) {
     const user = message.mentions.users.first();
@@ -116,11 +102,11 @@ client.on('messageCreate', async (message) => {
   }
 });
 
-// Start Express app
-const port = process.env.PORT || 3000;
-app.listen(port, () => {
-  console.log(`Server listening on port ${port}`);
+client.on('ready', () => {
+  console.log('Ready to serve the best API of all time');
+  client.user.setActivity('in development');
 });
 
-// Login to Discord
 client.login(process.env.TOKEN);
+
+export default app;
