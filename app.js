@@ -1,7 +1,8 @@
-import NextApiRequest from 'next-api-request';
-import { MongoClient } from 'mongodb';
+import { createApp } from 'vue';
+import App from './App.vue';
 import axios from 'axios';
 import Discord from 'discord.js';
+import { MongoClient } from 'mongodb';
 
 const client = new Discord.Client({
   intents: [
@@ -11,54 +12,58 @@ const client = new Discord.Client({
   ],
 });
 
-const mongoClient = new MongoClient(process.env.MONGO_URI, { useNewUrlParser: true, useUnifiedTopology: true });
+const mongoClient = new MongoClient(process.env.MONGO, { useNewUrlParser: true, useUnifiedTopology: true });
 const db = mongoClient.db();
 const collection = db.collection('api_tokens');
 
-const app = NextApiRequest();
+const app = createApp(App);
 
-app.get('/userinfo', async (req, res) => {
-  const apiToken = req.headers.authorization;
-  if (!apiToken) {
-    return res.status(401).json({ error: 'API token is required' });
-  }
-
-  const isValidToken = await verifyApiToken(apiToken);
-  if (!isValidToken) {
-    return res.status(401).json({ error: 'Invalid API token' });
-  }
-
-  const userId = req.query.user_id;
-  const headers = {
-    Authorization: `Bot ${process.env.TOKEN}`,
-    'Content-Type': 'application/json',
-  };
-
-  try {
-    const response = await axios.get(`https://discord.com/api/v9/users/${userId}`, { headers });
-    const userInfo = response.data;
-    const filteredUserInfo = {
-      id: userInfo.id,
-      username: userInfo.username,
-      avatar: userInfo.avatar,
-      discriminator: userInfo.discriminator,
-      public_flags: userInfo.public_flags,
-      flags: userInfo.flags,
-      banner: userInfo.banner,
-      banner_color: userInfo.banner_color,
-      accent_color: userInfo.accent_color,
-      bio: userInfo.bio,
-    };
-
-    return res.json(filteredUserInfo);
-  } catch (error) {
-    if (error.response.status === 404) {
-      return res.status(404).json({ error: 'User not found' });
+app.use(async (ctx, next) => {
+  if (ctx.request.url === '/userinfo') {
+    const apiToken = ctx.request.headers.authorization;
+    if (!apiToken) {
+      return { status: 401, body: { error: 'API token is required' } };
     }
 
-    console.error(error);
-    return res.status(500).json({ error: 'Internal Server Error' });
+    const isValidToken = await verifyApiToken(apiToken);
+    if (!isValidToken) {
+      return { status: 401, body: { error: 'Invalid API token' } };
+    }
+
+    const userId = ctx.request.query.user_id;
+    const headers = {
+      Authorization: `Bot ${process.env.TOKEN}`,
+      'Content-Type': 'application/json',
+    };
+
+    try {
+      const response = await axios.get(`https://discord.com/api/v9/users/${userId}`, { headers });
+      const userInfo = response.data;
+      const filteredUserInfo = {
+        id: userInfo.id,
+        username: userInfo.username,
+        avatar: userInfo.avatar,
+        discriminator: userInfo.discriminator,
+        public_flags: userInfo.public_flags,
+        flags: userInfo.flags,
+        banner: userInfo.banner,
+        banner_color: userInfo.banner_color,
+        accent_color: userInfo.accent_color,
+        bio: userInfo.bio,
+      };
+
+      return { status: 200, body: filteredUserInfo };
+    } catch (error) {
+      if (error.response.status === 404) {
+        return { status: 404, body: { error: 'User not found' } };
+      }
+
+      console.error(error);
+      return { status: 500, body: { error: 'Internal Server Error' } };
+    }
   }
+
+  return next();
 });
 
 async function verifyApiToken(apiToken) {
@@ -86,7 +91,7 @@ client.on('messageCreate', async (message) => {
       console.error(error);
     }
 
-    const logChannel = client.channels.cache.get(process.env.LOG_CHANNEL_ID);
+    const logChannel = client.channels.cache.get(process.env.LOGS);
     if (logChannel) {
       const embed = new Discord.EmbedBuilder()
         .setDescription('New API Token Generated')
@@ -97,7 +102,7 @@ client.on('messageCreate', async (message) => {
         );
       await logChannel.send({ embeds: [embed] });
     } else {
-      console.log(`Could not find channel with ID ${process.env.LOG_CHANNEL_ID}`);
+      console.log(`Could not find channel with ID ${process.env.LOGS}`);
     }
   }
 });
@@ -109,4 +114,6 @@ client.on('ready', () => {
 
 client.login(process.env.TOKEN);
 
-export default app;
+app.listen(() => {
+  console.log('Server listening on port 3000');
+});
