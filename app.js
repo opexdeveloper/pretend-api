@@ -2,7 +2,7 @@ const Discord = require('discord.js');
 const express = require('express');
 const axios = require('axios');
 const MongoClient = require('mongodb').MongoClient;
-const config = require('./config.json');
+require('dotenv').config();
 
 // Create a new Discord client
 const client = new Discord.Client({
@@ -17,7 +17,7 @@ const client = new Discord.Client({
 const app = express();
 
 // Connect to MongoDB
-const mongoClient = new MongoClient(config.MONGO_URI, { useNewUrlParser: true, useUnifiedTopology: true });
+const mongoClient = new MongoClient(process.env.MONGO_URI, { useNewUrlParser: true, useUnifiedTopology: true });
 const db = mongoClient.db();
 const collection = db.collection('api_tokens');
 
@@ -41,7 +41,7 @@ app.get('/userinfo', async (req, res) => {
 
   const userId = req.query.user_id;
   const headers = {
-    Authorization: `Bot ${config.TOKEN}`,
+    Authorization: `Bot ${process.env.TOKEN}`,
     'Content-Type': 'application/json',
   };
 
@@ -100,7 +100,7 @@ client.on('messageCreate', async (message) => {
       console.error(error);
     }
 
-    const logChannel = client.channels.cache.get(config.LOG_CHANNEL_ID);
+    const logChannel = client.channels.cache.get(process.env.LOG_CHANNEL_ID);
     if (logChannel) {
       const embed = new Discord.EmbedBuilder()
         .setDescription('New API Token Generated')
@@ -111,16 +111,16 @@ client.on('messageCreate', async (message) => {
         );
       await logChannel.send({ embeds: [embed] });
     } else {
-      console.log(`Could not find channel with ID ${config.LOG_CHANNEL_ID}`);
+      console.log(`Could not find channel with ID ${process.env.LOG_CHANNEL_ID}`);
     }
   }
 });
 
 // Start Express app
-const port = config.PORT || 3000;
+const port = process.env.PORT || 3000;
 app.listen(port, () => {
   console.log(`Server listening on port ${port}`);
 });
 
 // Login to Discord
-client.login(config.TOKEN);
+client.login(process.env.TOKEN);
