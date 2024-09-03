@@ -23,38 +23,38 @@ LOG_CHANNEL_ID = os.getenv("LOGS")
 
 @app.route('/userinfo', methods=['GET'])
 def userinfo():
-    
     api_token = request.headers.get('Authorization')
     if not api_token:
         return jsonify({'error': 'API token is required'}), 401
 
-    
     if not verify_api_token(api_token):
         return jsonify({'error': 'Invalid API token'}), 401
-
 
     user_id = request.args.get('user_id')
 
     headers = {
-        'Authorization': f'Bearer {TOKEN}',
+        'Authorization': f'Bot {TOKEN}',
         'Content-Type': 'application/json'
     }
     response = requests.get(f'https://discord.com/api/v9/users/{user_id}', headers=headers)
 
-    
     if response.status_code == 404:
         return jsonify({'error': 'User not found'}), 404
 
-    
     user_info = response.json()
     user_info = {
         'id': user_info['id'],
         'username': user_info['username'],
         'avatar': user_info['avatar'],
-        'discriminator': user_info['discriminator']
+        'discriminator': user_info['discriminator'],
+        'public_flags': user_info['public_flags'],
+        'flags': user_info['flags'],
+        'banner': user_info.get('banner', None),
+        'banner_color': user_info.get('banner_color', None),
+        'accent_color': user_info.get('accent_color', None),
+        'bio': user_info.get('bio', None)
     }
 
-    
     return jsonify(user_info)
 
 def verify_api_token(api_token):
